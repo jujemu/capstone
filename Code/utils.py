@@ -11,7 +11,6 @@ from tqdm import tqdm
 from sklearn import preprocessing
 from torch.utils.data import Dataset
 
-
 cls2idx = {
     'clearthroat': 2,
     'cough': 8,

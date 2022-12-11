@@ -1,12 +1,11 @@
+from datetime import datetime
+import os 
+
 import click
 import joblib
-import os
-import numpy as np
-import pandas as pd
 
 import torch
 from torch.utils.data import DataLoader
-import torch_xla.core.xla_model as xm
 
 from models import Network
 from utils import Audio2Vector
@@ -23,7 +22,10 @@ def infer(
     is_sample=True
 ):
 
-    device = xm.xla_device()
+    if not torch.cuda.is_available():
+        print('Check out GPU resource')
+        return
+    device = 'cuda'
     model = Network().to(device)
     model.load_state_dict(torch.load(model_weight))
 

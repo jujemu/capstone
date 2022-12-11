@@ -1,6 +1,7 @@
 # import click
 import os
 from datetime import datetime
+
 import joblib
 import numpy as np
 from tqdm import tqdm
@@ -9,11 +10,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import torch_xla.core.xla_model as xm
 
 from utils import Audio2Vector
 from models import Network
-
 
 # @click.command()
 # @click.option('--input', 'input_dir', help='Directory of wave files and metadata', required=True)
@@ -26,7 +25,10 @@ def main(
     os.makedirs(weight_output_path, exist_ok=True)
 
     # device = 'cpu'
-    device = xm.xla_device()
+    if not torch.cuda.is_available():
+        print('Check out GPU resource')
+        return
+    device = 'cuda'
 
     # Model
     model = Network()
@@ -83,7 +85,6 @@ def main(
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                xm.mark_step()
                 
                 mean_loss += loss.item()
                 log = f'loss: {mean_loss/idx:.3f}'  
