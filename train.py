@@ -1,6 +1,7 @@
-# import click
 import os
 from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore')
 
 import joblib
 import numpy as np
@@ -14,39 +15,32 @@ from torch.utils.data import DataLoader
 from utils import Audio2Vector
 from models import Network
 
-# @click.command()
-# @click.option('--input', 'input_dir', help='Directory of wave files and metadata', required=True)
 def main(
     input_dir='./Development Datasets/',
-    model_weight_path=None
+    model_weight_path="checkpoint/2022-12-12_0954/05_model_weight.pkl"
 ):  
     date_time = datetime.now().strftime("%Y-%m-%d_%H%M")
     weight_output_path = os.path.join('./checkpoint', date_time) + '/'
     os.makedirs(weight_output_path, exist_ok=True)
 
-    # device = 'cpu'
-    if not torch.cuda.is_available():
-        print('Check out GPU resource')
-        return
-    device = 'cuda'
-
     # Model
+    device = 'cpu'
     model = Network()
-    model = model.to(device)
     if model_weight_path:
         print(f'Model is loaded with {model_weight_path}')
         model.load_state_dict(torch.load(model_weight_path))
+    model = model.to(device, dtype=torch.float32)
 
     # Dataset
-    ds = Audio2Vector(input_dir, './foa_wts.pkl')
+    ds = Audio2Vector(input_dir, scaler_path='./audio_scaler.pkl')
     train_idx = joblib.load('./train_idx.pkl')
     val_idx = joblib.load('./val_idx.pkl')
 
     # Parameter
     num_cls = 11
-    epochs = 100
+    epochs = 10
     batch_size = 1
-    lr = 1e-3
+    lr = 1e-4
     patience = 3
     best_loss = np.inf
     bad_learning_cnt = 0
@@ -74,7 +68,7 @@ def main(
         print(f'Epoch: {epoch}')
         with tqdm(train_loader, "Train ", len(train_loader), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}') as iterator:
             for idx, (X, y) in enumerate(iterator, start=1):
-                X, y = X.to(device), y.to(device)
+                X, y = X.to(device, dtype=torch.float32), y.to(device, dtype=torch.float32)
                 sed_y, doa_y = y[:, :, :num_cls], y[:, :, num_cls:]                                
 
                 sed_output, doa_output = model(X)
@@ -95,10 +89,10 @@ def main(
         model.eval()
         with tqdm(val_loader, "Validation ", len(val_loader), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}') as iterator:
             mean_loss = 0.
-            acc_mean = 0.
+            mean_acc = 0.
             for idx, (X, y) in enumerate(iterator, start=1):
                 with torch.no_grad():
-                    X, y = X.to(device), y.to(device)
+                    X, y = X.to(device, dtype=torch.float32), y.to(device, dtype=torch.float32)
                     sed_y, doa_y = y[:, :, :num_cls], y[:, :, num_cls:] 
                     
                     sed_output, doa_output = model(X)
@@ -112,7 +106,7 @@ def main(
                     iterator.set_postfix_str(log)
             # Scheduler
             scheduler.step(loss)
-            
+        
             # if validation loss is not decreased despite of learning,
             # stop train loop
             mean_loss /= len(val_loader)

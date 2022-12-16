@@ -21,11 +21,8 @@ def infer(
     model_weight,
     is_sample=True
 ):
-
-    if not torch.cuda.is_available():
-        print('Check out GPU resource')
-        return
-    device = 'cuda'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f'Device is ready on {device}')
     model = Network().to(device)
     model.load_state_dict(torch.load(model_weight))
 
